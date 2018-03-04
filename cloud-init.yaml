@@ -1,0 +1,25 @@
+#cloud-config
+package_upgrade: true
+
+packages:
+  - apache2
+
+groups:
+  - ubuntu: [root,sys]
+  - my-users
+
+users:
+  - default
+  - name: newuser
+    gecos: New User
+    primary-group: newuser
+    groups: my-users
+    lock_passwd: true
+
+write_files:
+  - content: |
+        <h1>This is my super page!</h1>
+    path: /var/www/html/index.html
+
+
+
