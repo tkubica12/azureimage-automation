@@ -1,0 +1,33 @@
+{
+  "builders": [{
+    "type": "azure-arm",
+
+    "client_id": "changethis",
+    "client_secret": "changethis",
+    "tenant_id": "changethis",
+    "subscription_id": "changethis",
+
+    "managed_image_resource_group_name": "autoimage",
+    "managed_image_name": "myPackerImage",
+
+    "os_type": "Linux",
+    "image_publisher": "Canonical",
+    "image_offer": "UbuntuServer",
+    "image_sku": "16.04-LTS",
+
+    "location": "West Europe",
+    "vm_size": "Standard_A1_v2"
+  }],
+  "provisioners": [{
+    "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E sh '{{ .Path }}'",
+    "inline": [
+      "apt update",
+      "apt install apache2 -y",
+      "echo 'My web app' > /var/www/html/index.html",
+
+      "/usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync"
+    ],
+    "inline_shebang": "/bin/sh -x",
+    "type": "shell"
+  }]
+}
