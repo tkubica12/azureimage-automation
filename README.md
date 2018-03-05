@@ -1,4 +1,4 @@
-# Azure image automation demo: container-like automation for standard VMs
+# Azure image automation demo: container-like automation for standard VM images
 
 Working with containers gives you new experiences in area of automation. When you need to go back to world of VMs (eg. because your applications are not ready for such move yet), you might miss quite a few things:
 * You can easily pass information to containers with environmental variables or Kubernetes ConfigMaps
@@ -10,7 +10,7 @@ Working with containers gives you new experiences in area of automation. When yo
 There are way more advantages of containers beyond this, but things mentioned in list are not unique to containers. With right tooling you can use similar principles with VMs:
 * You can pass information including simple data, configuration files, scripts or binaries to VM during provisioning time using cloud-init or Azure VM Extensions
 * You can build immutable (preinstalled) images automatically, consistently and using starting image with Packer
-* There is easy and very secure way to access sensitive information from your VM with Azure Managed Service Instance and Azure Key Vault
+* There is easy and very secure way to access sensitive information from your VM with Azure Managed Service Idenitity and Azure Key Vault
 
 In this demo we are going to explore those options.
 
@@ -22,7 +22,7 @@ In this demo we are going to explore those options.
 
 
 ## Standardized cloud-init for Linux in any cloud
-Standardized open source way to bootstrap VMs is cloud-init project that is working well with multiple clouds. It comes with many different modules to manage SSH keys, users, groups, install packages, create files or run scripts and much more. It is currently (as of March 2018) supported in Azure stock images for Ubuntu, CoreOS and in preview for certain CentOS and RHEL images (#https://docs.microsoft.com/en-us/azure/virtual-machines/linux/using-cloud-init).
+Standardized open source way to bootstrap VMs is cloud-init project that is working well with multiple clouds. It comes with many different modules to manage SSH keys, users, groups, install packages, create files or run scripts and much more. It is currently (as of March 2018) supported in Azure stock images for Ubuntu, CoreOS and in preview for certain CentOS and RHEL images (https://docs.microsoft.com/en-us/azure/virtual-machines/linux/using-cloud-init).
 
 Key advantage is support with multiple clouds. On the other hand there is no Windows support (natively) and solution is not as tightly integrated to Azure portal.
 
@@ -48,7 +48,7 @@ az vm create -n testvm \
     --size Standard_A1_v2 \
     --custom-data ./cloud-init.yaml
 ```
-As soon creation is complete log to your VM and tailf syslog to see cloud-init operations.
+As soon as creation is complete log to your VM and tailf syslog to see cloud-init operations.
 
 ```
 ssh tomas@mujimagetest.westeurope.cloudapp.azure.com 
@@ -164,6 +164,8 @@ Packer automates the following workflow:
 * After provisioning Packer does sanitization, turn of VM and capture it as new image
 * Packer delete all temporary resources
 
+Also make sure you are not using Packer to set configurations that you want to modify for different environments or embedd secrets into image - combine Packer with other techniques mentioned here to deliver things like feature flags or connection strings.
+
 First let's download Packer binary.
 ```
 wget https://releases.hashicorp.com/packer/1.2.1/packer_1.2.1_linux_amd64.zip
@@ -172,7 +174,7 @@ rm packer_1.2.1_linux_amd64.zip
 packer --verison
 ```
 
-Check packerImage.json and fill in your service principal details. Builders section is about automating Azure (or other environments at the same time) while provisioners section uses scripting to install apache2 and create home page. Output of Packer will be custom image.
+Check packerImage.json and fill in your service principal details (just for demo! Make sure you store your credentials outside of main automation script so you can save it securely to version control). Builders section is about automating Azure (or other environments at the same time) while provisioners section uses scripting to install apache2 and create home page. Output of Packer will be custom image.
 ```
 az group create -n autoimage -l westeurope
 packer build packerImage.json
@@ -249,7 +251,7 @@ az group delete -n autoimage -y --no-wait
 ```
 
 ## Passing secrets with Azure Key Vault
-Most of previously used methods are not the most secure ways to pass secrets such as connection strings, passwords or certificates to our VMs. Not only tranfer itself is not secure enough, but keeping secrets as part of automation scripts is also pretty bad practice. We want to separate lifecycle of secrets so we can put all automation files into version control system with no risk of leaking sensitive information.
+Most of previously used methods are not the most secure ways to pass secrets such as connection strings, passwords or certificates to our VMs. Not only transfer itself is not secure enough, but keeping secrets as part of automation scripts is also pretty bad practice. We want to separate lifecycle of secrets so we can put all automation files into version control system with no risk of leaking sensitive information.
 
 In this demo we will use Azure Key Vault to securely store secrets outside of automation process. In order to access secrets by VM we will use Managed Service Identity, which is automated creation of Azure Active Directory service account for VM and secure delivery of authentication tokens within VM. Using this mechanism we will get access to Key Vault and read our secrets.
 
@@ -307,7 +309,7 @@ curl -s https://tomaskeyvault.vault.azure.net/secrets/mysecret?api-version=2016-
     | jq -r .value
 ```
 
-We can delete resource group.
+We can delete resource group now.
 ```
 az group delete -n automation -y --no-wait
 ```
