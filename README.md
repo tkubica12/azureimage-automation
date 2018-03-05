@@ -247,9 +247,13 @@ We can now delete all resource groups
 az group delete -n scaleset -y --no-wait
 az group delete -n autoimage -y --no-wait
 ```
-## Passing secrets with Azure Key Vault
 
-Create Ubuntu VM with managed identity
+## Passing secrets with Azure Key Vault
+Most of previously used methods are not the most secure ways to pass secrets such as connection strings, passwords or certificates to our VMs. Not only tranfer itself is not secure enough, but keeping secrets as part of automation scripts is also pretty bad practice. We want to separate lifecycle of secrets so we can put all automation files into version control system with no risk of leaking sensitive information.
+
+In this demo we will use Azure Key Vault to securely store secrets outside of automation process. In order to access secrets by VM we will use Managed Service Identity, which is automated creation of Azure Active Directory service account for VM and secure delivery of authentication tokens within VM. Using this mechanism we will get access to Key Vault and read our secrets.
+
+First create Ubuntu VM with managed identity.
 ```
 az group create -n automation -l westeurope
 az vm create -n testvm \
@@ -265,7 +269,7 @@ az vm create -n testvm \
     --no-wait
 ```
 
-Create Azure Key Vault and secret
+Now create Azure Key Vault and store our secret.
 ```
 az keyvault create -n tomaskeyvault \
     -g automation
@@ -275,7 +279,7 @@ az keyvault secret set -n mysecret \
      --value thisIsMySecretString
 ```
 
-Get VM principal ID and allow access to Key Vault
+Get VM principal ID (VM service account in AAD) and allow access to Key Vault.
 ```
 export principalid=$(az vm show -n testvm \
     -g automation \
@@ -288,7 +292,7 @@ az keyvault set-policy -n tomaskeyvault \
     --secret-permissions get
 ```
 
-SSH to VM, authenticate to get Key Vault token and read secret
+SSH to VM, authenticate to get Key Vault token and read secret. API calls are returning JSON, so we will use jq to parse it in CLI.
 ```
 ssh tomas@tomassecretstest.westeurope.cloudapp.azure.com 
 
@@ -301,4 +305,9 @@ export token=$(curl -s http://localhost:50342/oauth2/token \
 curl -s https://tomaskeyvault.vault.azure.net/secrets/mysecret?api-version=2016-10-01 \
     -H "Authorization: Bearer $token" \
     | jq -r .value
+```
+
+We can delete resource group.
+```
+az group delete -n automation -y --no-wait
 ```
